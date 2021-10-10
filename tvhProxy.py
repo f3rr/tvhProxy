@@ -78,11 +78,12 @@ def status():
 @app.route('/lineup.json')
 def lineup():
     lineup = []
-
+    authurl = 'http://%s:%s@%s' % (config['tvhUser'],
+                                   config['tvhPassword'], config['tvhURL'].split('//')[1])
     for c in _get_channels():
         if c['enabled']:
             url = '%s/stream/channel/%s?profile=%s&weight=%s' % (
-                config['tvhURL'], c['uuid'], config['streamProfile'], int(config['tvhWeight']))
+                authurl, c['uuid'], config['streamProfile'], int(config['tvhWeight']))
 
             lineup.append({'GuideNumber': str(c['number']),
                            'GuideName': c['name'],
