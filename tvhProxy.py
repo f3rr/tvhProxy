@@ -41,7 +41,7 @@ config = {
     'tunerCount': os.environ.get('TVH_TUNER_COUNT') or 6,
     'tvhWeight': os.environ.get('TVH_WEIGHT') or 300,  # subscription priority
     # usually you don't need to edit this
-    'chunkSize': os.environ.get('TVH_CHUNK_SIZE') or 1024*1024,
+    'chunkSize': os.environ.get('TVH_CHUNK_SIZE') or 1024 * 1024,
     # specifiy a stream profile that you want to use for adhoc transcoding in tvh, e.g. mp4
     'streamProfile': os.environ.get('TVH_PROFILE') or 'pass'
 }
@@ -158,6 +158,20 @@ def _get_genres():
         logger.error('An error occured: %s' + repr(e))
 
 
+def _get_channel_number(channelId):
+    url = '%s/api/idnode/load?uuid=%s' % (config['tvhURL'], channelId)
+    r = requests.get(url, auth=HTTPDigestAuth(
+        config['tvhUser'], config['tvhPassword'])).content
+    logger.info('resolving channel number for %s', channelId)
+    req_json = json.loads(r)
+    for _h in req_json['entries'][0]['params']:
+        if _h['id'] == 'number':
+            logger.info('found channel number %s', _h['value'])
+            return str(_h['value'])
+    logger.info('channel number not found using 00')
+    return '00'
+
+
 def _get_xmltv():
     try:
         url = '%s/xmltv/channels' % config['tvhURL']
@@ -179,7 +193,7 @@ def _get_xmltv():
                 }
             ])
         }
-        r = requests.get(url, params=params,  auth=HTTPDigestAuth(
+        r = requests.get(url, params=params, auth=HTTPDigestAuth(
             config['tvhUser'], config['tvhPassword']))
         logger.info('downloading epg grid from %s', r.url)
         epg_events_grid = r.json()['entries']
@@ -201,7 +215,7 @@ def _get_xmltv():
                 channelNo = child[1].text
                 if not channelNo:
                     logger.error("No channel number for: %s", channelId)
-                    channelNo = "00"
+                    channelNo = _get_channel_number(channelId)
                 if not child[0].text:
                     logger.error("No channel name for: %s", channelNo)
                     child[0].text = "No Name"
@@ -279,7 +293,7 @@ def _get_xmltv():
                 logger.debug("Programmes found for channel %s", key)
             else:
                 channelName = root.find(
-                    'channel[@id="'+key+'"]/display-name').text
+                    'channel[@id="' + key + '"]/display-name').text
                 logger.error("No programme for channel %s: %s",
                              key, channelName)
                 # create 2h programmes for 72 hours
@@ -290,9 +304,9 @@ def _get_xmltv():
                     dummyProgramme = ElementTree.SubElement(root, 'programme')
                     dummyProgramme.attrib['channel'] = str(key)
                     dummyProgramme.attrib['start'] = (
-                        yesterday_midnight + timedelta(hours=x*2)).strftime(date_format)
+                        yesterday_midnight + timedelta(hours=x * 2)).strftime(date_format)
                     dummyProgramme.attrib['stop'] = (
-                        yesterday_midnight + timedelta(hours=(x*2)+2)).strftime(date_format)
+                        yesterday_midnight + timedelta(hours=(x * 2) + 2)).strftime(date_format)
                     dummyTitle = ElementTree.SubElement(
                         dummyProgramme, 'title')
                     dummyTitle.attrib['lang'] = 'eng'
